@@ -1,0 +1,11 @@
+INICIALIZAR A ATIVIDADE
+ - Acesse: https://www.onlinegdb.com/online_c_compiler
+ - No editor de texto do online_c_compiler altere a linguagem para C# e apague o código inicial
+ - Copie o código na classe Program.cs e cole no editor de texto online_c_compiler
+ - Para executar clique no botão Run
+
+DESCRIÇÃO DA ATIVIDADE
+ Desenvolver um autômato para reconhecer padrões de númenos
+ - inteiros: positivos e negativos
+
+ Ex: 1; -22, 98, -1239
