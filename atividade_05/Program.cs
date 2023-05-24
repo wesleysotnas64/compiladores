@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-/*
+/* GRAMÁTICA
 S -> cAd
 A -> abA | c
 */
