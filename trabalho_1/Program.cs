@@ -50,7 +50,7 @@ public class Program
     private static void Main(string[] args)
     {
         
-        string input = "999identifier10";
+        string input = "999identifier10=<><<=>=>|&";
         LexicalAnalyzer.PreSelect(input);
         Utils.PrintTokens();
     }
@@ -130,7 +130,7 @@ public static class Global{
     public static string addingOperator = "+-";
     public static string sign = "+-";
     public static string multiplyingOperator = "*/";
-    public static string relational = "";
+    public static string relational = "=<>|&";
     public static char dot = '.';
     public static List<Token> tokens = new List<Token>();
 }
@@ -169,6 +169,10 @@ public static class LexicalAnalyzer
             else if(Utils.CharIsIn(Global.digits, input[i]))
             {
                 i = NumbersAutomaton(input, i);
+            }
+            else if(Utils.CharIsIn(Global.relational, input[i]))
+            {
+                i = RelationalAutomaton(input, i);
             }
             else
             {
@@ -352,6 +356,144 @@ public static class LexicalAnalyzer
                 end = true;
             }
         }
+        return i;
+    }
+
+    public static int RelationalAutomaton(string input, int i)
+    {
+        int q = 0;
+        int initial = i;
+
+        bool end = false;
+        while(!end == true)
+        {
+            switch(q)
+            {
+                case 0:
+                    if(input[i] == '=')
+                    {
+                        i++;
+                        q = 1;
+                    }
+                    else if(input[i] == '<')
+                    {
+                        i++;
+                        q = 2;
+                    }
+                    else if(input[i] == '>')
+                    {
+                        i++;
+                        q = 6;
+                    }
+                    else if(input[i] == '|')
+                    {
+                        i++;
+                        q = 9;
+                    }
+                    else if(input[i] == '&')
+                    {
+                        i++;
+                        q = 10;
+                    }
+                    break;
+                
+                case 2:
+                    if(input[i] == '=')
+                    {
+                        i++;
+                        q = 3;
+                    }
+                    else if(input[i] == '>')
+                    {
+                        i++;
+                        q = 4;
+                    }
+                    else
+                    {
+                        q = 5;
+                    }
+                    break;
+
+                case 6:
+                    if(input[i] == '=')
+                    {
+                        i++;
+                        q = 7;
+                    }
+                    else
+                    {
+                        q = 8;
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+
+            if(i >= input.Length)
+            {
+                switch(q)
+                {
+                    case 2:
+                        q = 5;
+                        break;
+
+                    case 6:
+                        q = 8;
+                        break;
+                    
+                    default:
+                        break;
+                }
+            }
+
+            switch(q)
+            {
+                case 1:
+                    Utils.AddToken(TokenType.RelationalOperator, Utils.GetSubString(input, initial, i));
+                    end = true;
+                    break;
+
+                case 3:
+                    Utils.AddToken(TokenType.RelationalOperator, Utils.GetSubString(input, initial, i));
+                    end = true;
+                    break;
+
+                case 4:
+                    Utils.AddToken(TokenType.RelationalOperator, Utils.GetSubString(input, initial, i));
+                    end = true;
+                    break;
+
+                case 5:
+                    Utils.AddToken(TokenType.RelationalOperator, Utils.GetSubString(input, initial, i));
+                    end = true;
+                    break;
+
+                case 7:
+                    Utils.AddToken(TokenType.RelationalOperator, Utils.GetSubString(input, initial, i));
+                    end = true;
+                    break;
+
+                case 8:
+                    Utils.AddToken(TokenType.RelationalOperator, Utils.GetSubString(input, initial, i));
+                    end = true;
+                    break;
+                
+                case 9:
+                    Utils.AddToken(TokenType.RelationalOperator, Utils.GetSubString(input, initial, i));
+                    end = true;
+                    break;
+
+                case 10:
+                    Utils.AddToken(TokenType.RelationalOperator, Utils.GetSubString(input, initial, i));
+                    end = true;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
         return i;
     }
 }
