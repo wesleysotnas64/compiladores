@@ -50,7 +50,7 @@ public class Program
     private static void Main(string[] args)
     {
         
-        string input = "id10";
+        string input = "999identifier10";
         LexicalAnalyzer.PreSelect(input);
         Utils.PrintTokens();
     }
@@ -128,6 +128,7 @@ public static class Global{
     public static string digits = "0123456789";
     public static string letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     public static string addingOperator = "+-";
+    public static string sign = "+-";
     public static string multiplyingOperator = "*/";
     public static string relational = "";
     public static char dot = '.';
@@ -141,13 +142,15 @@ public enum TokenType
     Sign = 2,
     MultiplyingOperator = 3,
     AddingOperator = 4,
-    RelationalOperator = 5
+    RelationalOperator = 5,
+    Int = 6,
+    Float = 7
 }
 
 public class Token
 {
     public TokenType type;
-    public string value;
+    public string value = "";
 }
 
 public static class LexicalAnalyzer
@@ -157,14 +160,31 @@ public static class LexicalAnalyzer
         int i = 0;
         while(i < input.Length)
         {
+            Console.WriteLine("Tamanho: {0} | i: {1}", input.Length, i);
+
             if(Utils.CharIsIn(Global.letters, input[i]))
             {
                 i = IdentifierAutomaton(input, i);
             }
-            // else if()
-            // {
+            else if(Utils.CharIsIn(Global.digits, input[i]))
+            {
+                i = NumbersAutomaton(input, i);
+            }
+            else
+            {
+                Console.WriteLine("ERRO LÉXICO! Lexema [{0}] posição[{1}] fora da tabela de símbolos.", input[i], i);
+                Console.WriteLine(input);
+                for(int j = 0; j < i+1; j++)
+                {
+                    if(j != i)
+                        Console.Write(" ");
+                    else
+                        Console.WriteLine("^");
+                }
+                break;
+            }
 
-            // }
+            Console.WriteLine("Tamanho: {0} | i: {1}", input.Length, i);
         }
     }
 
@@ -172,28 +192,164 @@ public static class LexicalAnalyzer
     {
         int initial = i;
         int q = 0;
-        while(true)
+        bool end = false;
+        while(!end == true)
         {
-            if(q == 0 && Utils.CharIsIn(Global.letters, input[i]))
+
+            switch(q)
             {
-                q = 1;
-                i++;
-            }
-            else if(q == 1 && (Utils.CharIsIn(Global.letters, input[i]) || Utils.CharIsIn(Global.digits, input[i])))
-            {
-                i++;
-            }
-            else{
-                q = 2;
+                case 0:
+                    if(Utils.CharIsIn(Global.letters, input[i]))
+                    {
+                        q = 1;
+                        i++;
+                    }
+                    break;
+
+                case 1:
+                    if(Utils.CharIsIn(Global.letters, input[i]) || Utils.CharIsIn(Global.digits, input[i]))
+                    {
+                        i++;
+                    }
+                    else
+                    {
+                        q = 2;
+                    }
+                    break;
             }
 
-            if(i+1 > input.Length)
-                q = 2;
-
-            if(q == 2)
+            if(i >= input.Length)
             {
-                Utils.AddToken(TokenType.Identifier, Utils.GetSubString(input, initial, i));
-                break;
+                switch(q)
+                {
+                    case 1:
+                        q = 2;
+                        break;
+                }
+            }
+
+            switch (q)
+            {
+                case 2:
+                    Utils.AddToken(TokenType.Identifier, Utils.GetSubString(input, initial, i));
+                    end = true;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+        return i;
+    }
+
+    public static int NumbersAutomaton(string input, int i)
+    {
+        int q = 0;
+        int initial = i;
+
+        char chr;
+        bool end = false;
+        while(!end == true)
+        {
+            chr = input[i];
+            //transition
+            switch(q)
+            {
+                case 0:
+                    if(Utils.CharIsIn(Global.sign, chr))
+                    {
+                        q = 1;
+                        i++;
+                    }
+                    else if(Utils.CharIsIn(Global.digits, chr))
+                    {
+                        q = 2;
+                        i++;
+                    }
+                    break;
+                
+                case 1:
+                    if(Utils.CharIsIn(Global.digits, chr))
+                    {
+                        q = 2;
+                        i++;
+                    }
+                    break;
+                
+                case 2:
+                    if(Global.dot == chr)
+                    {
+                        q = 4;
+                        i++;
+                    }
+                    else if(Utils.CharIsIn(Global.digits, chr))
+                    {
+                        i++;
+                    }
+                    else
+                    {
+                        q = 3;
+                    }
+                    break;
+                
+                case 4:
+                    if(Utils.CharIsIn(Global.digits, chr))
+                    {
+                        q = 5;
+                        i++;
+                    }
+                    else
+                    {
+                        i -= 1;
+                        q = 3;
+                    }
+                    break;
+
+                case 5:
+                    if(Utils.CharIsIn(Global.digits, chr))
+                    {
+                        q = 5;
+                        i++;
+                    }
+                    else
+                    {
+                        q = 6;
+                    }
+                    break;
+
+                default:
+                    break;
+                
+            }
+
+            if(i >= input.Length)
+            {
+                switch(q)
+                {
+                    case 2:
+                        q = 3;
+                        break;
+                    
+                    case 4:
+                        q = 3;
+                        i -= 1;
+                        break;
+
+                    case 5:
+                        q = 6;
+                        break;
+                }
+            }
+
+            if(q == 3)
+            {
+                Utils.AddToken(TokenType.Int, Utils.GetSubString(input, initial, i));
+                end = true;
+            }
+            else if(q == 6)
+            {
+                Utils.AddToken(TokenType.Float, Utils.GetSubString(input, initial, i));
+                end = true;
             }
         }
         return i;
@@ -233,11 +389,11 @@ public static class Utils
 
     public static void PrintTokens()
     {
+        Console.WriteLine("--------------------");
         foreach(Token tk in Global.tokens)
         {
-            Console.WriteLine(tk.type);
-            Console.WriteLine(tk.value);
-            Console.WriteLine("");
+            Console.WriteLine("Type: {0} | Value: {1}", tk.type, tk.value);
+            Console.WriteLine("--------------------");
         }
     }
 }
