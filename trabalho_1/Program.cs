@@ -49,83 +49,163 @@ public class Program
 {
     private static void Main(string[] args)
     {
-        string test_01 = "idade:=(19<limite#)&#(limite>15)#";
-        string test_02 = "resultado:=((idade-2)+(2*(idade-3)))*((idade-10)/2.5)";
-        string test_03 = "id:=12+(1.9*4-5)/3(v1<17.1|id<>1)";
+        // Testes Léxico
+        // string l1 = "idade:=(19<limite#)&#(limite>15)#";
+        // string l2 = "resultado:=((idade-2)+(2*(idade-3)))*((idade-10)/2.5)";
+        // string l3 = "id:=12+(1.9*4-5)/3(v1<17.1|id<>1)";
 
-        string input = test_03;
+        //Testes Sintaxe
+        string s1 = "nome(";
+
+        string input = s1;
 
         LexicalAnalyzer.PreSelect(input);
-        Utils.PrintTokens();
-        Utils.PrintHighlighted();
+        SyntaxParser.Parser(Global.tokens);
+        // Utils.PrintTokens();
+        // Utils.PrintHighlighted();
     }
+}
 
-    private static bool S(string input)
+public class SyntaxParser
+{
+
+    public static void Parser(List<Token> list)
     {
-        if(!Match('c', input[0]))
-            return false;
-
-        string subString = GetSubString(input, 1, input.Length-1);
-
-        if(!A(subString))
-            return false;
-
-        if(!Match('d', input[input.Length-1]))
-            return false;
-
-        return true;
-    }
-
-    private static bool A(string input)
-    {
-        if(NextToken(input, 0) == 'a')
+        SyntaxIndicator si = new SyntaxIndicator
         {
-            if(!Match('a', input[0]))
-                return false;
+            next = 0,
+            error = false
+        };
 
-            if(!Match('b', input[1]))
-                return false;
+        si = Term(list, si.next, list.Count);
 
-            string subString = GetSubString(input, 2, input.Length);
-
-            if(!A(subString))          
-                return false;
-            
-            return true;
-        }
-        else if(NextToken(input, 0) == 'c')
+        if(si.error == false)
         {
-            if(!Match('c', input[0]))
-                return false;
-            
-            return true;
+            Console.WriteLine("Aceita!");
         }
-        else{
-            return false; //Erro sintático
+        else
+        {
+            Console.WriteLine("Não Aceita!");
         }
     }
 
-    private static bool Match(char tk, char current)
+    public static SyntaxIndicator Term(List<Token> list, int init, int final)
     {
-        if(tk == current)
-            return true;
+        SyntaxIndicator si = new SyntaxIndicator
+        {
+            next = init,
+            error = false
+        };
 
-        return false;
+        si = Factor(list, init, final);
+        if(si.error)
+        {
+            return si;
+        }
+
+        if(si.next < final)
+        {
+            if(NextToken(list, si.next) == TokenType.LParenthesis)
+            {
+                if(NextToken(list, si.next) != TokenType.LParenthesis)
+                {
+                    si.error = true;
+                    return si;
+                }
+
+                if(NextToken(list, si.next+1) != TokenType.MultiplyingOperator)
+                {
+                    si.next += 1;
+                    si.error = true;
+                    return si;
+                }
+
+                si = Factor(list, si.next+2, final-1);
+                if(si.error)
+                {
+                    return si;
+                }
+
+                if(NextToken(list, final-1) != TokenType.RParenthesis)
+                {
+                    si.next = final-1;
+                    si.error = true;
+                    return si;
+                }
+            }
+            else
+            {}
+        }
+
+        return si;
     }
 
-    private static char NextToken(string input, int i)
+    public static SyntaxIndicator Factor(List<Token> list, int init, int final)
     {
-        return input[i];
+        SyntaxIndicator si = new SyntaxIndicator
+        {
+            next = init,
+            error = false
+        };
+
+        if(init >= list.Count)
+        {
+            si.error = true;
+            return si;
+        }
+
+        if(list[init].type == TokenType.Identifier)
+        {
+            if(NextToken(list, si.next) != TokenType.Identifier)
+            {
+                si.error = true;
+                return si;
+            }
+            else
+            {
+                si.next += 1;
+            }
+        }
+        else
+        {
+            si.error = true;
+        }
+
+        return si;
     }
 
-    private static string GetSubString(string input, int initial, int final)
+    public static TokenType NextToken(List<Token> list, int index)
     {
-        string subString = "";
-        for(int i = initial; i < final; i++)
-            subString += input[i];
+        if(index >= list.Count)
+            return TokenType.Null;
 
-        return subString;
+        return list[index].type;
     }
+
+    public static void PresentSyntaxError(List<Token> list, SyntaxIndicator si, string message = "")
+    {
+        Console.WriteLine(
+            "ERRO SINTÁTICO! Token [{0}] posição [{1}]. \n{2}",
+            list[si.next].value, list[si.next].initial, message
+        );
+        foreach(Token tk in list)
+        {
+            Console.Write(tk.value);
+        }
+        Console.WriteLine("");
+
+        for(int j = 0; j < list[si.next].initial+1; j++)
+        {
+            Console.Write(" ");
+        }
+            Console.WriteLine("^");
+    }
+}
+
+public class SyntaxIndicator
+{
+    public int next;
+    public bool error;
 }
 
 public class LexicalIndicator
@@ -691,7 +771,8 @@ public static class LexicalAnalyzer
     }
 }
 
-public static class Global{
+public static class Global
+{
     public static string digits = "0123456789";
     public static string letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     public static string sign = "+-";
@@ -744,7 +825,7 @@ public static class Utils
             type = tokenType,
             value = GetSubString(input, i, f),
             initial = i,
-            final = f
+            final = f-1
         };
 
         Global.tokens.Add(tk);
@@ -765,6 +846,7 @@ public static class Utils
         foreach(Token tk in Global.tokens)
         {
             Console.WriteLine("Type: {0} | Value: {1}", tk.type, tk.value);
+            Console.WriteLine("Inic: {0} | Final: {1}", tk.initial, tk.final);
             Console.WriteLine("--------------------");
         }
     }
