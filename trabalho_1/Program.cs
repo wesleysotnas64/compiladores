@@ -50,19 +50,26 @@ public class Program
     private static void Main(string[] args)
     {
         // Testes Léxico
-        // string l1 = "idade:=(19<limite#)&#(limite>15)#";
-        // string l2 = "resultado:=((idade-2)+(2*(idade-3)))*((idade-10)/2.5)";
-        // string l3 = "id:=12+(1.9*4-5)/3(v1<17.1|id<>1)";
+        // string test = "idade:=(19<limite#)&#(limite>15)#";
+        // string test = "resultado:=((idade-2)+(2*(idade-3)))*((idade-10)/2.5)";
+        // string test = "id:=12+(1.9*4-5)/3(v1<17.1|id<>1)";
 
         //Testes Sintaxe
-        string s1 = "nome(";
+        // string test = "id:=id";
+        // string test = "id:=id<>id";
+        // string test = "id:=id(+id(*id))";
+        // string test = "id:=(id)";
+        // string test = "id:=(id<=id)";
+        // string test = "id:=19<=(20)";
+        string test = "id:=(2023(-1998))|25";
+        // string test = "id:=((11(-1))|(12))";
 
-        string input = s1;
+        string input = test;
 
-        LexicalAnalyzer.PreSelect(input);
+        LexicalIndicator li = LexicalAnalyzer.PreSelect(input);
+        Utils.PrintTokens();
+        Utils.PrintHighlighted();
         SyntaxParser.Parser(Global.tokens);
-        // Utils.PrintTokens();
-        // Utils.PrintHighlighted();
     }
 }
 
@@ -77,7 +84,7 @@ public class SyntaxParser
             error = false
         };
 
-        si = Term(list, si.next, list.Count);
+        si = AssignmentStatement(list, si.next);
 
         if(si.error == false)
         {
@@ -89,7 +96,7 @@ public class SyntaxParser
         }
     }
 
-    public static SyntaxIndicator Term(List<Token> list, int init, int final)
+    public static SyntaxIndicator AssignmentStatement(List<Token> list, int init)
     {
         SyntaxIndicator si = new SyntaxIndicator
         {
@@ -97,50 +104,30 @@ public class SyntaxParser
             error = false
         };
 
-        si = Factor(list, init, final);
+        if(NextToken(list, si.next) != TokenType.Identifier)
+        {
+            si.error = true;
+            return si;
+        }
+        si.next++;
+
+        if(NextToken(list, si.next) != TokenType.Assignment)
+        {
+            si.error = true;
+            return si;
+        }
+        si.next++;
+
+        si = Expression(list, si.next);
         if(si.error)
         {
             return si;
         }
 
-        if(si.next < final)
-        {
-            if(NextToken(list, si.next) == TokenType.LParenthesis)
-            {
-                if(NextToken(list, si.next) != TokenType.LParenthesis)
-                {
-                    si.error = true;
-                    return si;
-                }
-
-                if(NextToken(list, si.next+1) != TokenType.MultiplyingOperator)
-                {
-                    si.next += 1;
-                    si.error = true;
-                    return si;
-                }
-
-                si = Factor(list, si.next+2, final-1);
-                if(si.error)
-                {
-                    return si;
-                }
-
-                if(NextToken(list, final-1) != TokenType.RParenthesis)
-                {
-                    si.next = final-1;
-                    si.error = true;
-                    return si;
-                }
-            }
-            else
-            {}
-        }
-
         return si;
     }
 
-    public static SyntaxIndicator Factor(List<Token> list, int init, int final)
+    public static SyntaxIndicator Expression(List<Token> list, int init)
     {
         SyntaxIndicator si = new SyntaxIndicator
         {
@@ -148,27 +135,229 @@ public class SyntaxParser
             error = false
         };
 
-        if(init >= list.Count)
+        si = SimpleExpression(list, si.next);
+        if(si.error)
+        {
+            return si;
+        }
+
+        if(NextToken(list, si.next) == TokenType.RelationalOperator)
+        {
+            if(NextToken(list, si.next) != TokenType.RelationalOperator)
+            {
+                si.error = true;
+                return si;
+            }
+            si.next++;
+
+            si = SimpleExpression(list, si.next);
+            if(si.error)
+            {
+                return si;
+            }
+        }
+
+        return si;
+    }
+
+    public static SyntaxIndicator SimpleExpression(List<Token> list, int init)
+    {
+        SyntaxIndicator si = new SyntaxIndicator
+        {
+            next = init,
+            error = false
+        };
+
+        si = Term(list, si.next);
+        if(si.error)
+        {
+            return si;
+        }
+
+        bool reading = true;
+        while(reading)
+        {
+            if(si.next < list.Count)
+            {
+                if(NextToken(list, si.next) == TokenType.LParenthesis &&
+                   NextToken(list, si.next+1) == TokenType.AddingOperator)
+                {
+                    if(NextToken(list, si.next) != TokenType.LParenthesis)
+                    {
+                        si.error = true;
+                        return si;
+                    }
+                    si.next++;
+
+                    if(NextToken(list, si.next) != TokenType.AddingOperator)
+                    {
+                        si.error = true;
+                        return si;
+                    }
+                    si.next++;
+
+                    si = Term(list, si.next);
+                    if(si.error)
+                    {
+                        return si;
+                    }
+
+                    if(NextToken(list, si.next) != TokenType.RParenthesis)
+                    {
+                        si.error = true;
+                        return si;
+                    }
+                    si.next++;
+
+                    if(NextToken(list, si.next) != TokenType.LParenthesis &&
+                       NextToken(list, si.next+1) != TokenType.AddingOperator)
+                    {
+                        reading = false;
+                    }
+                }
+                else
+                {
+                    reading = false;
+                }
+            }
+            else 
+            {
+                reading = false;
+            }
+        }
+
+        return si;
+    }
+
+    public static SyntaxIndicator Term(List<Token> list, int init)
+    {
+        SyntaxIndicator si = new SyntaxIndicator
+        {
+            next = init,
+            error = false
+        };
+
+        si = Factor(list, si.next);
+        if(si.error)
+        {
+            return si;
+        }
+
+        bool reading = true;
+        while(reading)
+        {
+            if(si.next < list.Count)
+            {
+                if(NextToken(list, si.next) == TokenType.LParenthesis &&
+                   NextToken(list, si.next+1) == TokenType.MultiplyingOperator )
+                {
+                    if(NextToken(list, si.next) != TokenType.LParenthesis)
+                    {
+                        si.error = true;
+                        return si;
+                    }
+                    si.next++;
+
+                    if(NextToken(list, si.next) != TokenType.MultiplyingOperator)
+                    {
+                        si.error = true;
+                        return si;
+                    }
+                    si.next++;
+
+                    si = Factor(list, si.next);
+                    if(si.error)
+                    {
+                        return si;
+                    }
+
+                    if(NextToken(list, si.next) != TokenType.RParenthesis)
+                    {
+                        si.error = true;
+                        return si;
+                    }
+                    si.next++;
+
+                    if(NextToken(list, si.next) != TokenType.LParenthesis &&
+                       NextToken(list, si.next+1) != TokenType.MultiplyingOperator)
+                    {
+                        reading = false;
+                    }
+                }
+                else
+                {
+                    reading = false;
+                }
+            }
+            else
+            {
+                reading = false;
+            }
+        }
+
+        return si;
+    }
+
+    public static SyntaxIndicator Factor(List<Token> list, int init)
+    {
+        SyntaxIndicator si = new SyntaxIndicator
+        {
+            next = init,
+            error = false
+        };
+
+        if(si.next >= list.Count)
         {
             si.error = true;
             return si;
         }
 
-        if(list[init].type == TokenType.Identifier)
+        if(NextToken(list, si.next) == TokenType.Identifier)
         {
             if(NextToken(list, si.next) != TokenType.Identifier)
             {
                 si.error = true;
                 return si;
             }
-            else
+            si.next += 1;
+        }
+        else if(NextToken(list, si.next) == TokenType.LParenthesis)
+        {
+            if(NextToken(list, si.next) != TokenType.LParenthesis)
             {
-                si.next += 1;
+                si.error = true;
+                return si;
             }
+            si.next += 1;
+
+            si = Expression(list, si.next);
+            if(si.error)
+            {
+                return si;
+            }
+
+            if(NextToken(list, si.next) != TokenType.RParenthesis)
+            {
+                si.error = true;
+                return si;
+            }
+            si.next += 1;
+        }
+        else if(NextToken(list, si.next) == TokenType.Int ||
+                NextToken(list, si.next) == TokenType.Float)
+        {
+            if(NextToken(list, si.next) != TokenType.Int &&
+               NextToken(list, si.next) != TokenType.Float)
+            {
+                si.error = true;
+                return si;
+            }
+            si.next += 1;
         }
         else
         {
             si.error = true;
+            return si;
         }
 
         return si;
@@ -216,7 +405,7 @@ public class LexicalIndicator
 
 public static class LexicalAnalyzer
 {
-    public static void PreSelect(string input)
+    public static LexicalIndicator PreSelect(string input)
     {
         LexicalIndicator li = new LexicalIndicator
         {
@@ -265,6 +454,8 @@ public static class LexicalAnalyzer
                 break;
             }
         }
+
+        return li;
     }
 
     public static void PresentLexicalError(string input, LexicalIndicator li, string message = "")
